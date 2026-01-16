@@ -27,7 +27,10 @@ def run_spider(spider_name, url=None, args=None):
     if args:
         cmd.extend(args)
 
-    print(f"Running: {' '.join(cmd)}")
+    print(f"[Run Script] Running: {' '.join(cmd)}")
+    print(f"[Run Script] Spider: {spider_name}")
+    if url:
+        print(f"[Run Script] URL: {url}")
     subprocess.run(cmd)
 
 
@@ -48,6 +51,7 @@ def main():
 
     if command == "list":
         # 列出所有爬虫
+        print("[Run Script] Listing all spiders...")
         subprocess.run(["scrapy", "list"])
     elif command == "shell":
         # Scrapy shell
@@ -55,6 +59,7 @@ def main():
             print("Usage: python run.py shell <url>")
             sys.exit(1)
         url = sys.argv[2]
+        print(f"[Run Script] Opening Scrapy shell for: {url}")
         subprocess.run(["scrapy", "shell", url])
     else:
         # 运行爬虫

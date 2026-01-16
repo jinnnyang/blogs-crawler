@@ -10,6 +10,7 @@ from urllib.parse import urljoin, urlparse
 import scrapy
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
+from scrapy.utils.response import get_base_url
 
 from crawler.converters import get_converter
 from crawler.framework_detector import FrameworkDetector
@@ -73,14 +74,20 @@ class BlogSpider(CrawlSpider):
         """
         # 检测框架
         framework = self.framework_detector.detect(response)
-        self.logger.debug(f"Detected framework: {framework} for {response.url}")
+        self.logger.info(
+            f"[Framework Detection] Detected framework: {framework} for {response.url}"
+        )
 
         # 获取对应的转换器
-        converter = get_converter(framework)()
-        converter_instance = converter()
+        converter_class = get_converter(framework)
+        converter_instance = converter_class()
+        self.logger.debug(f"[Converter] Using converter: {converter_class.__name__}")
 
         # 提取数据
         data = converter_instance.process(response)
+        self.logger.debug(
+            f"[Data Extraction] Extracted title: {data.get('title')}, tags: {data.get('tags')}"
+        )
 
         # 创建Item
         item = BlogItem()
@@ -91,20 +98,20 @@ class BlogSpider(CrawlSpider):
         item["framework"] = framework
         item["crawl_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        self.logger.info(f"Extracted: {item.get('title')} from {response.url}")
+        self.logger.info(
+            f"[Item Created] Title: {item.get('title')}, URL: {response.url}"
+        )
 
         yield item
 
-    async def start(self):
-        """
-        异步启动爬虫（Scrapy 2.13+ 推荐方法）
-        """
-        for url in self.start_urls:
-            yield scrapy.Request(url, callback=self.parse)
-
     def start_requests(self):
         """
-        生成初始请求（兼容旧版本 Scrapy）
+        生成初始请求
+        对于CrawlSpider，不需要指定callback，让CrawlSpider的默认处理流程处理
         """
+        self.logger.info(
+            f"[BlogSpider] Starting crawl with {len(self.start_urls)} start URLs"
+        )
         for url in self.start_urls:
-            yield scrapy.Request(url, callback=self.parse)
+            self.logger.debug(f"[BlogSpider] Starting request to: {url}")
+            yield scrapy.Request(url, dont_filter=True)

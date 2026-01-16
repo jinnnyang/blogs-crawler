@@ -5,6 +5,7 @@
 """
 
 import os
+import random
 import re
 from pathlib import Path
 from typing import Dict, Optional
@@ -124,7 +125,7 @@ class CacheMiddleware:
         # 检查缓存
         if url in self.url_cache:
             cached = self.url_cache[url]
-            spider.logger.info(f"Cache hit: {url}")
+            spider.logger.info(f"[CacheMiddleware] Cache hit: {url}")
 
             # 从缓存创建Response
             # 提取content部分（去除YAML metadata）
@@ -167,8 +168,12 @@ class CacheMiddleware:
             Response对象
         """
         # 如果响应来自缓存，直接返回
-        if response.meta.get("cached"):
-            return response
+        try:
+            if response.meta.get("cached"):
+                return response
+        except AttributeError:
+            # response.meta不可用，继续处理
+            pass
 
         # 保存响应到缓存目录
         if self.cache_dir:
@@ -185,23 +190,30 @@ class CacheMiddleware:
                 with open(cache_file, "w", encoding="utf-8") as f:
                     f.write(response.text)
             except Exception as e:
-                spider.logger.warning(f"Failed to save cache: {e}")
+                spider.logger.warning(f"[CacheMiddleware] Failed to save cache: {e}")
 
         return response
 
     def spider_opened(self, spider):
         """
         Spider打开时的回调
+
+        Args:
+            spider: Spider实例
         """
         spider.logger.info(
-            f"CacheMiddleware opened, loaded {len(self.url_cache)} URLs from cache"
+            f"[CacheMiddleware] Opened, loaded {len(self.url_cache)} URLs from cache"
         )
 
     def spider_closed(self, spider, reason):
         """
         Spider关闭时的回调
+
+        Args:
+            spider: Spider实例
+            reason: 关闭原因
         """
-        spider.logger.info(f"CacheMiddleware closed")
+        spider.logger.info(f"[CacheMiddleware] Closed, reason: {reason}")
 
 
 class RandomUserAgentMiddleware:
@@ -224,6 +236,7 @@ class RandomUserAgentMiddleware:
         return cls(user_agent_list)
 
     def process_request(self, request, spider):
-        import random
-
         request.headers["User-Agent"] = random.choice(self.user_agent_list)
+        spider.logger.debug(
+            f"[RandomUserAgent] Using User-Agent: {request.headers['User-Agent']}"
+        )

@@ -18,7 +18,7 @@ class DocsifyConverter(BaseConverter):
     def __init__(self):
         super().__init__()
         # Docsify特定的标签移除
-        self.converter.strip.extend(
+        self.strip_tags.extend(
             [
                 "nav.app-nav",
                 "aside.sidebar",

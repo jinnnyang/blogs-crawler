@@ -4,9 +4,12 @@ HTML到Markdown转换器基类
 提供基础的HTML到Markdown转换功能
 """
 
+import logging
 from typing import List, Optional
 
 from markdownify import markdownify as md
+
+logger = logging.getLogger(__name__)
 
 
 class BaseConverter:
@@ -16,12 +19,8 @@ class BaseConverter:
     """
 
     def __init__(self):
-        # 配置markdownify选项
-        self.converter = md.MarkdownConverter(
-            heading_style="ATX",  # 使用 # 标题样式
-            bullets="*",  # 使用 * 作为列表符号
-            strip=["script", "style", "nav", "footer", "header"],  # 移除的标签
-        )
+        # 需要移除的标签列表
+        self.strip_tags = ["script", "style", "nav", "footer", "header"]
 
     def convert(self, html: str) -> str:
         """
@@ -33,7 +32,18 @@ class BaseConverter:
         Returns:
             Markdown字符串
         """
-        return self.converter.convert(html)
+        logger.debug(
+            f"[BaseConverter] Converting HTML to Markdown, length: {len(html)}"
+        )
+        # 移除不需要的标签
+        from bs4 import BeautifulSoup
+
+        soup = BeautifulSoup(html, "lxml")
+        for tag in self.strip_tags:
+            for element in soup.find_all(tag):
+                element.decompose()
+        # 使用markdownify函数转换
+        return md(str(soup), heading_style="ATX", bullets="*")
 
     def extract_title(self, response) -> Optional[str]:
         """
@@ -117,8 +127,13 @@ class BaseConverter:
         Returns:
             dict: 包含title, tags, content的字典
         """
-        return {
+        logger.debug(f"[BaseConverter] Processing response: {response.url}")
+        result = {
             "title": self.extract_title(response),
             "tags": self.extract_tags(response),
             "content": self.extract_content(response),
         }
+        logger.info(
+            f"[BaseConverter] Extracted - Title: {result.get('title')}, Tags: {result.get('tags')}"
+        )
+        return result

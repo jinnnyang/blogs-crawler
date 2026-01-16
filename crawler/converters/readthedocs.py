@@ -18,7 +18,7 @@ class ReadTheDocsConverter(BaseConverter):
     def __init__(self):
         super().__init__()
         # ReadTheDocs特定的标签移除
-        self.converter.strip.extend(
+        self.strip_tags.extend(
             [
                 "div.ethical-ad",
                 "div.ethical-dark-theme",

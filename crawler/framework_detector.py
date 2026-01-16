@@ -4,8 +4,11 @@
 通过HTML特征检测文档站点使用的框架
 """
 
+import logging
 from typing import Optional
 from urllib.parse import urlparse
+
+logger = logging.getLogger(__name__)
 
 
 class FrameworkDetector:
@@ -71,18 +74,22 @@ class FrameworkDetector:
         # 1. 先通过URL域名检测
         framework = cls._detect_by_url(response.url)
         if framework != "unknown":
+            logger.debug(f"[FrameworkDetector] Detected by URL: {framework}")
             return framework
 
         # 2. 通过HTML特征检测
         framework = cls._detect_by_html(response)
         if framework != "unknown":
+            logger.debug(f"[FrameworkDetector] Detected by HTML: {framework}")
             return framework
 
         # 3. 通过meta标签检测
         framework = cls._detect_by_meta(response)
         if framework != "unknown":
+            logger.debug(f"[FrameworkDetector] Detected by meta: {framework}")
             return framework
 
+        logger.debug(f"[FrameworkDetector] Unknown framework for {response.url}")
         return "unknown"
 
     @classmethod

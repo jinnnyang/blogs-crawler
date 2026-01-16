@@ -45,12 +45,16 @@ class MarkdownSavePipeline:
         pipeline.crawler = crawler
         return pipeline
 
-    def open_spider(self):
+    def open_spider(self, spider):
         """
         Spider打开时的回调
+
+        Args:
+            spider: Spider实例
         """
-        spider = self.crawler.spider
-        spider.logger.info(f"MarkdownSavePipeline opened for spider: {spider.name}")
+        spider.logger.info(
+            f"[Pipeline] MarkdownSavePipeline opened for spider: {spider.name}"
+        )
 
     def process_item(self, item):
         """
@@ -91,9 +95,9 @@ class MarkdownSavePipeline:
         try:
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(markdown_content)
-            spider.logger.info(f"Saved: {output_path}")
+            spider.logger.info(f"[Pipeline] Saved markdown file: {output_path}")
         except Exception as e:
-            spider.logger.error(f"Failed to save {output_path}: {e}")
+            spider.logger.error(f"[Pipeline] Failed to save {output_path}: {e}")
 
         return item
 
@@ -196,9 +200,21 @@ class MarkdownSavePipeline:
 
         return markdown
 
-    def close_spider(self):
+    def close_spider(self, spider):
         """
         Spider关闭时的回调
+
+        Args:
+            spider: Spider实例
         """
-        spider = self.crawler.spider
-        spider.logger.info(f"MarkdownSavePipeline closed for spider: {spider.name}")
+        if spider:
+            spider.logger.info(
+                f"[Pipeline] MarkdownSavePipeline closed for spider: {spider.name}"
+            )
+        else:
+            # 兼容未来版本，可能不传递spider参数
+            # 使用crawler.spider访问spider实例
+            if hasattr(self, "crawler") and hasattr(self.crawler, "spider"):
+                self.crawler.spider.logger.info(
+                    f"[Pipeline] MarkdownSavePipeline closed for spider: {self.crawler.spider.name}"
+                )

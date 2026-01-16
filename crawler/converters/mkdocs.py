@@ -18,7 +18,7 @@ class MkDocsConverter(BaseConverter):
     def __init__(self):
         super().__init__()
         # MkDocs特定的标签移除
-        self.converter.strip.extend(
+        self.strip_tags.extend(
             [
                 "nav.md-nav",
                 "div.md-sidebar",
