@@ -81,7 +81,7 @@ class DocsifyConverter(BaseConverter):
             content_html = response.css("main").get()
 
         if content_html:
-            return self.convert(content_html)
+            return self.convert(content_html, base_url=response.url)
 
         # 回退到通用方法
         return super().extract_content(response)

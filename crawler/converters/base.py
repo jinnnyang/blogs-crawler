@@ -22,12 +22,13 @@ class BaseConverter:
         # 需要移除的标签列表
         self.strip_tags = ["script", "style", "nav", "footer", "header"]
 
-    def convert(self, html: str) -> str:
+    def convert(self, html: str, base_url: str = None) -> str:
         """
         将HTML转换为Markdown
 
         Args:
             html: HTML字符串
+            base_url: 基础URL，用于将相对路径转换为绝对路径
 
         Returns:
             Markdown字符串
@@ -36,14 +37,51 @@ class BaseConverter:
             f"[BaseConverter] Converting HTML to Markdown, length: {len(html)}"
         )
         # 移除不需要的标签
+        from urllib.parse import urljoin
+
         from bs4 import BeautifulSoup
 
         soup = BeautifulSoup(html, "lxml")
         for tag in self.strip_tags:
             for element in soup.find_all(tag):
                 element.decompose()
+
+        # 将相对路径转换为绝对路径
+        if base_url:
+            self._convert_relative_urls(soup, base_url)
+
         # 使用markdownify函数转换
         return md(str(soup), heading_style="ATX", bullets="*")
+
+    def _convert_relative_urls(self, soup, base_url: str):
+        """
+        将HTML中的相对路径转换为绝对路径
+
+        Args:
+            soup: BeautifulSoup对象
+            base_url: 基础URL
+        """
+        from urllib.parse import urljoin
+
+        # 处理 img 标签的 src 属性
+        for img in soup.find_all("img"):
+            if img.get("src"):
+                img["src"] = urljoin(base_url, img["src"])
+
+        # 处理 a 标签的 href 属性
+        for a in soup.find_all("a"):
+            if a.get("href"):
+                a["href"] = urljoin(base_url, a["href"])
+
+        # 处理 link 标签的 href 属性
+        for link in soup.find_all("link"):
+            if link.get("href"):
+                link["href"] = urljoin(base_url, link["href"])
+
+        # 处理 script 标签的 src 属性
+        for script in soup.find_all("script"):
+            if script.get("src"):
+                script["src"] = urljoin(base_url, script["src"])
 
     def extract_title(self, response) -> Optional[str]:
         """
@@ -113,7 +151,7 @@ class BaseConverter:
         # 默认提取body内容
         html = response.css("body").get()
         if html:
-            return self.convert(html)
+            return self.convert(html, base_url=response.url)
 
         return ""
 
