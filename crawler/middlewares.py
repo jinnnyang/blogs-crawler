@@ -1,79 +1,212 @@
 # -*- coding: utf-8 -*-
-# Define here the models for your spider middleware
-#
-# See documentation in:
-# https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+"""
+中间件模块
+包含缓存中间件和随机User-Agent中间件
+"""
 
-import random
+import os
+import re
+from pathlib import Path
+from typing import Dict, Optional
 
-from itemadapter import ItemAdapter
+import yaml
 from scrapy import signals
+from scrapy.exceptions import IgnoreRequest
+from scrapy.http import HtmlResponse, Response
 
 
-class CrawlerSpiderMiddleware:
+class CacheMiddleware:
     """
-    爬虫中间件
-    处理爬虫输入和输出
+    缓存中间件
+    支持从output/**/*.md预加载缓存，避免重复请求
     """
+
+    def __init__(self, cache_dir: str = "cache", output_dir: str = "output"):
+        """
+        初始化缓存中间件
+
+        Args:
+            cache_dir: 缓存目录
+            output_dir: 输出目录
+        """
+        self.cache_dir = Path(cache_dir)
+        self.output_dir = Path(output_dir)
+        self.url_cache: Dict[str, Dict] = {}  # url -> {content, metadata}
+        self._preload_from_output()
 
     @classmethod
     def from_crawler(cls, crawler):
-        s = cls(crawler)
-        crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
-        return s
+        """
+        从crawler创建中间件实例
 
-    def __init__(self, crawler):
-        self.crawler = crawler
+        Args:
+            crawler: Scrapy crawler对象
 
-    def process_spider_input(self, response):
+        Returns:
+            CacheMiddleware实例
+        """
+        cache_dir = crawler.settings.get("CACHE_DIR", "cache")
+        output_dir = crawler.settings.get("OUTPUT_DIR", "output")
+        middleware = cls(cache_dir, output_dir)
+        crawler.signals.connect(middleware.spider_opened, signal=signals.spider_opened)
+        crawler.signals.connect(middleware.spider_closed, signal=signals.spider_closed)
+        return middleware
+
+    def _preload_from_output(self):
+        """
+        从output/**/*.md预加载缓存
+        解析YAML metadata，提取URL并添加到缓存
+        """
+        if not self.output_dir.exists():
+            return
+
+        # 递归查找所有.md文件
+        md_files = self.output_dir.rglob("*.md")
+
+        for md_file in md_files:
+            try:
+                with open(md_file, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                # 解析YAML metadata
+                metadata = self._parse_yaml_metadata(content)
+                if metadata and "url" in metadata:
+                    url = metadata["url"]
+                    self.url_cache[url] = {
+                        "content": content,
+                        "metadata": metadata,
+                        "file_path": str(md_file),
+                    }
+            except Exception as e:
+                # 忽略解析错误的文件
+                pass
+
+    def _parse_yaml_metadata(self, content: str) -> Optional[Dict]:
+        """
+        解析Markdown文件中的YAML metadata
+
+        Args:
+            content: Markdown文件内容
+
+        Returns:
+            metadata字典或None
+        """
+        # 检查是否以---开头
+        if not content.startswith("---"):
+            return None
+
+        # 查找第二个---
+        end_pos = content.find("\n---\n", 4)
+        if end_pos == -1:
+            return None
+
+        # 提取YAML部分
+        yaml_content = content[4:end_pos]
+
+        try:
+            return yaml.safe_load(yaml_content)
+        except yaml.YAMLError:
+            return None
+
+    def process_request(self, request, spider):
+        """
+        处理请求，检查缓存
+
+        Args:
+            request: Scrapy Request对象
+            spider: Spider实例
+
+        Returns:
+            Response对象或None
+        """
+        url = request.url
+
+        # 检查缓存
+        if url in self.url_cache:
+            cached = self.url_cache[url]
+            spider.logger.info(f"Cache hit: {url}")
+
+            # 从缓存创建Response
+            # 提取content部分（去除YAML metadata）
+            content = cached["content"]
+            metadata = cached["metadata"]
+
+            # 查找第二个---，获取正文内容
+            end_pos = content.find("\n---\n", 4)
+            if end_pos != -1:
+                body_content = content[end_pos + 5 :]
+            else:
+                body_content = content
+
+            # 创建HtmlResponse
+            response = HtmlResponse(
+                url=url,
+                status=200,
+                headers={"Content-Type": "text/html; charset=utf-8"},
+                body=body_content.encode("utf-8"),
+            )
+
+            # 添加缓存标记
+            response.meta["cached"] = True
+            response.meta["cache_metadata"] = metadata
+
+            return response
+
         return None
 
-    async def process_spider_output(self, response, result):
-        async for i in result:
-            yield i
+    def process_response(self, request, response, spider):
+        """
+        处理响应，保存到缓存
 
-    def process_spider_exception(self, response, exception):
-        pass
+        Args:
+            request: Scrapy Request对象
+            response: Scrapy Response对象
+            spider: Spider实例
 
-    async def process_start(self, start):
-        async for item_or_request in start:
-            yield item_or_request
+        Returns:
+            Response对象
+        """
+        # 如果响应来自缓存，直接返回
+        if response.meta.get("cached"):
+            return response
 
-    def spider_opened(self):
-        self.crawler.spider.logger.info("Spider opened: %s" % self.crawler.spider.name)
+        # 保存响应到缓存目录
+        if self.cache_dir:
+            self.cache_dir.mkdir(exist_ok=True)
 
+            # 生成缓存文件名
+            from urllib.parse import urlparse
 
-class CrawlerDownloaderMiddleware:
-    """
-    下载中间件
-    处理请求和响应
-    """
+            parsed = urlparse(request.url)
+            cache_key = f"{parsed.netloc}{parsed.path.replace('/', '_')}"
+            cache_file = self.cache_dir / f"{cache_key}.html"
 
-    @classmethod
-    def from_crawler(cls, crawler):
-        s = cls(crawler)
-        crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
-        return s
+            try:
+                with open(cache_file, "w", encoding="utf-8") as f:
+                    f.write(response.text)
+            except Exception as e:
+                spider.logger.warning(f"Failed to save cache: {e}")
 
-    def __init__(self, crawler):
-        self.crawler = crawler
-
-    def process_request(self, request):
-        return None
-
-    def process_response(self, request, response):
         return response
 
-    def process_exception(self, request, exception):
-        pass
+    def spider_opened(self, spider):
+        """
+        Spider打开时的回调
+        """
+        spider.logger.info(
+            f"CacheMiddleware opened, loaded {len(self.url_cache)} URLs from cache"
+        )
 
-    def spider_opened(self):
-        self.crawler.spider.logger.info("Spider opened: %s" % self.crawler.spider.name)
+    def spider_closed(self, spider, reason):
+        """
+        Spider关闭时的回调
+        """
+        spider.logger.info(f"CacheMiddleware closed")
 
 
 class RandomUserAgentMiddleware:
     """
-    随机 User-Agent 中间件
+    随机User-Agent中间件
     """
 
     def __init__(self, user_agent_list=None):
@@ -82,6 +215,7 @@ class RandomUserAgentMiddleware:
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
         ]
 
     @classmethod
@@ -89,28 +223,7 @@ class RandomUserAgentMiddleware:
         user_agent_list = crawler.settings.get("USER_AGENT_LIST")
         return cls(user_agent_list)
 
-    def process_request(self, request):
+    def process_request(self, request, spider):
+        import random
+
         request.headers["User-Agent"] = random.choice(self.user_agent_list)
-
-
-class ProxyMiddleware:
-    """
-    代理中间件
-    """
-
-    def __init__(self, crawler, proxy_list=None):
-        self.crawler = crawler
-        self.proxy_list = proxy_list or []
-        self.current_index = 0
-
-    @classmethod
-    def from_crawler(cls, crawler):
-        proxy_list = crawler.settings.get("PROXY_LIST", [])
-        return cls(crawler, proxy_list)
-
-    def process_request(self, request):
-        if self.proxy_list:
-            proxy = self.proxy_list[self.current_index % len(self.proxy_list)]
-            request.meta["proxy"] = proxy
-            self.current_index += 1
-            self.crawler.spider.logger.debug(f"Using proxy: {proxy}")

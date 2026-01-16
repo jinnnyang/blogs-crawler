@@ -1,29 +1,35 @@
 # -*- coding: utf-8 -*-
-# Define here the models for your scraped items
-#
-# See documentation in:
-# https://docs.scrapy.org/en/latest/topics/items.html
+"""
+博客爬虫数据模型
+用于存储博客文档的元数据和内容
+"""
 
 import scrapy
 
 
-class CrawlerItem(scrapy.Item):
+class BlogItem(scrapy.Item):
     """
-    简单爬虫数据模型
-    适用于基础网页爬取
+    博客文档数据模型
+    包含URL、标题、内容、标签、框架类型等信息
     """
 
-    # URL
+    # 页面URL
     url = scrapy.Field()
 
-    # 标题
+    # 页面标题
     title = scrapy.Field()
 
-    # 内容
+    # Markdown内容（正文，不含metadata）
     content = scrapy.Field()
+
+    # 标签列表
+    tags = scrapy.Field()
+
+    # 文档框架类型 (readthedocs, rbook, mkdocs, sphinx, teadocs, docsify, unknown)
+    framework = scrapy.Field()
 
     # 爬取时间
     crawl_time = scrapy.Field()
 
-    # 验证状态
-    status = scrapy.Field()
+    # 输出文件路径（如 output/example.com/path/to/page.md）
+    output_path = scrapy.Field()

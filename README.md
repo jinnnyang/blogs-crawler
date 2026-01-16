@@ -1,127 +1,137 @@
-# Scrapy 爬虫开发模板
+# 博客爬虫
 
-[![Open in Dev Containers](https://img.shields.io/static/v1?label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/microsoft/vscode-remote-try-python)
-
-一个功能完善的 Scrapy 爬虫开发模板，支持 Dev Containers 和 GitHub Codespaces 开发环境。
+一个基于Scrapy的博客文档爬虫，支持多种文档框架，自动将HTML转换为Markdown格式并保存。
 
 ## 特性
 
-- 🚀 开箱即用的 Scrapy 爬虫框架
-- 🐳 支持 Docker Dev Containers 开发环境
-- 💻 完善的 VS Code 调试配置
-- 📦 预置常用爬虫中间件和管道
-- 📝 丰富的示例爬虫代码
-- 📚 详细的开发文档
+- 🚀 支持多种文档框架：ReadTheDocs、RBook、MkDocs、Sphinx、Teadocs、Docsify
+- 📦 自动检测文档框架类型
+- 🔄 递归爬取文档站点
+- 💾 缓存机制，避免重复请求
+- 📝 输出为Markdown格式，包含YAML metadata
+- 🗂️ 保持URL结构输出文件
 
 ## 快速开始
 
-### 使用 GitHub Codespaces
-
-1. 点击仓库的 **Code** 下拉菜单
-2. 点击 **Codespaces** 标签
-3. 点击 **Create codespace on main**
-
-### 使用 VS Code Dev Containers
-
-如果你已经安装了 VS Code 和 Docker：
-
-1. 克隆仓库到本地
-2. 在 VS Code 中打开仓库
-3. 按 `F1` 并选择 **Dev Containers: Reopen in Container**
-4. 等待容器构建完成
-
-### 本地开发
-
-确保已安装 Python 3.8+：
+### 安装依赖
 
 ```bash
-# 安装依赖
 pip install -r requirements.txt
-
-# 运行示例爬虫
-scrapy crawl example
-
-# 或使用便捷脚本
-python run.py example
 ```
-
-## 项目结构
-
-```
-.
-├── crawler/                    # 爬虫核心目录
-│   ├── __init__.py
-│   ├── settings.py           # Scrapy 配置文件
-│   ├── items.py             # 数据模型定义
-│   ├── pipelines.py         # 数据处理管道
-│   ├── middlewares.py       # 中间件
-│   ├── utils.py             # 工具函数
-│   ├── exporters.py         # 自定义导出器
-│   └── spiders/             # 爬虫目录
-│       ├── __init__.py
-│       ├── example.py       # 基础示例爬虫
-│       ├── async_spider.py  # 异步爬虫示例
-│       └── selenium_spider.py # Selenium 爬虫示例
-├── output/                   # 数据输出目录
-│   └── .gitkeep
-├── docs/                     # 文档目录
-│   ├── GETTING_STARTED.md   # 快速开始指南
-│   ├── BEST_PRACTICES.md    # 最佳实践
-│   └── API_REFERENCE.md     # API 参考
-├── .devcontainer/            # Dev Container 配置
-├── .vscode/                  # VS Code 配置
-├── scrapy.cfg               # Scrapy 项目配置
-├── run.py                   # 便捷运行脚本
-├── requirements.txt         # Python 依赖
-└── README.md               # 项目说明
-```
-
-## 使用示例
 
 ### 运行爬虫
 
 ```bash
-# 使用 Scrapy 命令
-scrapy crawl example
+# 使用通用爬虫（自动检测框架）
+scrapy crawl blog -a url=https://example.com
 
-# 使用便捷脚本
-python run.py example
-
-# 调试模式运行
-scrapy crawl example -s LOG_LEVEL=DEBUG
-
-# 保存数据到文件
-scrapy crawl example -o output/example.json
+# 使用特定框架爬虫
+scrapy crawl readthedocs -a url=https://docs.readthedocs.io
+scrapy crawl mkdocs -a url=https://mkdocs.org
 ```
 
-### 创建新爬虫
+### 输出格式
 
-```bash
-# 使用 Scrapy 命令生成爬虫模板
-scrapy genspider myspider example.com
+爬取的文档会保存为Markdown文件，包含YAML metadata：
 
-# 或手动创建文件
-# 在 crawler/spiders/ 目录下创建新的爬虫文件
+```markdown
+---
+title: 页面标题
+url: https://example.com/path/to/page.html
+tags:
+  - tag1
+  - tag2
+framework: readthedocs
+crawl_time: 2024-01-16 16:00:00
+---
+
+# 页面内容
+
+这里是转换后的Markdown正文内容...
 ```
 
-### 调试爬虫
+### 文件路径规则
 
-在 VS Code 中：
+输出文件保持URL结构：
 
-1. 打开 `crawler/spiders/example.py`
-2. 在代码行号左侧点击设置断点
-3. 按 `F5` 或选择 "Scrapy" 调试配置
-4. 等待断点命中，开始调试
+| 输入URL | 输出路径 |
+|---------|----------|
+| `https://example.com/` | `output/example.com/index.md` |
+| `https://example.com/path/to/page.html` | `output/example.com/path/to/page.md` |
+| `https://docs.python.org/3/library/` | `output/docs.python.org/3/library/index.md` |
 
-### 使用 Scrapy Shell
+## 项目结构
 
-```bash
-# 交互式调试
-scrapy shell "https://example.com"
-
-# 使用 VS Code 调试配置
-# 选择 "Scrapy Shell" 配置启动
 ```
+blogs-crawler/
+├── crawler/
+│   ├── __init__.py
+│   ├── settings.py              # 配置文件
+│   ├── items.py                # 数据模型 (BlogItem)
+│   ├── middlewares.py          # 中间件（包含缓存中间件）
+│   ├── pipelines.py            # 数据管道（Markdown保存管道）
+│   ├── framework_detector.py    # 框架检测模块
+│   ├── converters/             # HTML到Markdown转换器
+│   │   ├── __init__.py
+│   │   ├── base.py           # 基类
+│   │   ├── readthedocs.py    # ReadTheDocs转换器
+│   │   ├── rbook.py         # RBook转换器
+│   │   ├── mkdocs.py        # MkDocs转换器
+│   │   ├── sphinx.py        # Sphinx转换器
+│   │   ├── teadocs.py       # Teadocs转换器
+│   │   └── docsify.py       # Docsify转换器
+│   └── spiders/             # 爬虫目录
+│       ├── __init__.py
+│       ├── base.py          # 博客爬虫基类
+│       ├── readthedocs.py   # ReadTheDocs爬虫
+│       ├── rbook.py         # RBook爬虫
+│       ├── mkdocs.py        # MkDocs爬虫
+│       ├── sphinx.py        # Sphinx爬虫
+│       ├── teadocs.py       # Teadocs爬虫
+│       └── docsify.py       # Docsify爬虫
+├── output/                  # Markdown输出目录
+├── cache/                   # HTTP缓存目录
+├── scrapy.cfg
+├── requirements.txt
+└── README.md
+```
+
+## 核心功能
+
+### 1. 框架检测
+
+[`FrameworkDetector`](crawler/framework_detector.py) 自动检测文档框架类型：
+
+- 通过URL域名检测
+- 通过HTML特征检测
+- 通过meta标签检测
+
+### 2. 转换器架构
+
+各框架专用转换器继承 [`BaseConverter`](crawler/converters/base.py)，提供优化的HTML到Markdown转换：
+
+- [`ReadTheDocsConverter`](crawler/converters/readthedocs.py) - 针对ReadTheDocs优化
+- [`RBookConverter`](crawler/converters/rbook.py) - 针对RBook优化
+- [`MkDocsConverter`](crawler/converters/mkdocs.py) - 针对MkDocs优化
+- [`SphinxConverter`](crawler/converters/sphinx.py) - 针对Sphinx优化
+- [`TeadocsConverter`](crawler/converters/teadocs.py) - 针对Teadocs优化
+- [`DocsifyConverter`](crawler/converters/docsify.py) - 针对Docsify优化
+
+### 3. 缓存机制
+
+[`CacheMiddleware`](crawler/middlewares.py) 提供缓存功能：
+
+- 爬虫开始前自动从 `output/**/*.md` 预加载URL到缓存
+- URL命中缓存则直接返回，避免重复请求
+- 支持HTTP响应缓存
+
+### 4. Markdown保存
+
+[`MarkdownSavePipeline`](crawler/pipelines.py) 将数据保存为Markdown文件：
+
+- 根据URL生成输出路径
+- 构建YAML metadata
+- 写入Markdown文件
 
 ## 配置说明
 
@@ -129,109 +139,21 @@ scrapy shell "https://example.com"
 
 主要配置项：
 
-- `BOT_NAME` - 爬虫名称
-- `SPIDER_MODULES` - 爬虫模块路径
-- `USER_AGENT` - 用户代理
-- `ROBOTSTXT_OBEY` - 是否遵守 robots.txt
+- `OUTPUT_DIR` - 输出目录（默认：`output`）
+- `CACHE_DIR` - 缓存目录（默认：`cache`）
+- `DOWNLOAD_DELAY` - 下载延迟（秒）
 - `CONCURRENT_REQUESTS` - 并发请求数
-- `DOWNLOAD_DELAY` - 下载延迟
 - `ITEM_PIPELINES` - 启用的数据管道
 - `DOWNLOADER_MIDDLEWARES` - 启用的下载中间件
-
-### 中间件 ([`crawler/middlewares.py`](crawler/middlewares.py))
-
-内置中间件：
-
-- `RandomUserAgentMiddleware` - 随机 User-Agent
-- `ProxyMiddleware` - 代理支持
-- `RetryMiddleware` - 请求重试
-
-### 数据管道 ([`crawler/pipelines.py`](crawler/pipelines.py))
-
-内置管道：
-
-- `DataCleaningPipeline` - 数据清洗
-- `FileSavePipeline` - 文件保存
-- `DeduplicationPipeline` - 数据去重
-- `ValidationPipeline` - 数据验证
-
-## 示例爬虫
-
-### 基础爬虫 ([`example.py`](crawler/spiders/example.py))
-
-爬取 https://example.com 的基础示例：
-
-```python
-import scrapy
-from crawler.items import CrawlerItem
-
-
-class ExampleSpider(scrapy.Spider):
-    name = "example"
-    allowed_domains = ["example.com"]
-    start_urls = ["https://example.com"]
-
-    def parse(self, response):
-        item = ClawerItem()
-        item['url'] = response.url
-        item['title'] = response.css('h1::text').get()
-        item['content'] = response.css('p::text').getall()
-        yield item
-```
-
-### 异步爬虫 ([`async_spider.py`](crawler/spiders/async_spider.py))
-
-使用 aiohttp 的异步爬虫示例。
-
-### Selenium 爬虫 ([`selenium_spider.py`](crawler/spiders/selenium_spider.py))
-
-使用 Selenium 处理 JavaScript 渲染页面的示例。
-
-## 常见问题
-
-### Q: 如何修改爬虫的并发数？
-
-A: 在 [`crawler/settings.py`](crawler/settings.py) 中修改 `CONCURRENT_REQUESTS` 配置项。
-
-### Q: 如何添加代理？
-
-A: 在 [`crawler/settings.py`](crawler/settings.py) 中启用 `ProxyMiddleware` 并配置代理列表。
-
-### Q: 数据保存到数据库？
-
-A: 在 [`crawler/pipelines.py`](crawler/pipelines.py) 中添加数据库管道，或在 `ITEM_PIPELINES` 中配置。
-
-### Q: 如何处理登录认证？
-
-A: 在爬虫的 `start_requests` 方法中添加登录逻辑，或使用 `FormRequest` 发送登录请求。
-
-## 开发指南
-
-详细的开发指南请参考：
-
-- [快速开始指南](docs/GETTING_STARTED.md)
-- [最佳实践](docs/BEST_PRACTICES.md)
-- [API 参考](docs/API_REFERENCE.md)
 
 ## 技术栈
 
 - **Scrapy** - 爬虫框架
-- **BeautifulSoup4** - HTML 解析
-- **Requests** - HTTP 请求
-- **lxml** - XML/HTML 解析
-- **Selenium** - 浏览器自动化
-- **aiohttp** - 异步 HTTP 客户端
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
+- **Markdownify** - HTML到Markdown转换
+- **BeautifulSoup4** - HTML解析
+- **lxml** - XML/HTML解析
+- **PyYAML** - YAML解析
 
 ## 许可证
 
-MIT License - 详见 [LICENSE](LICENSE) 文件
-
-## 链接
-
-- [Scrapy 官方文档](https://docs.scrapy.org/)
-- [Scrapy GitHub](https://github.com/scrapy/scrapy)
-- [VS Code Dev Containers](https://code.visualstudio.com/docs/devcontainers/containers)
+MIT License

@@ -1,4 +1,22 @@
-# This package will contain the spiders of your Scrapy project
-#
-# Please refer to the documentation for information on how to create and manage
-# your spiders.
+# -*- coding: utf-8 -*-
+"""
+博客爬虫模块
+"""
+
+from .base import BlogSpider
+from .docsify import DocsifySpider
+from .mkdocs import MkDocsSpider
+from .rbook import RBookSpider
+from .readthedocs import ReadTheDocsSpider
+from .sphinx import SphinxSpider
+from .teadocs import TeadocsSpider
+
+__all__ = [
+    "BlogSpider",
+    "ReadTheDocsSpider",
+    "RBookSpider",
+    "MkDocsSpider",
+    "SphinxSpider",
+    "TeadocsSpider",
+    "DocsifySpider",
+]

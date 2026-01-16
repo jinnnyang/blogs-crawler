@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 便捷运行脚本
-用于快速运行 Scrapy 爬虫
+用于快速运行博客爬虫
 """
 
 import subprocess
@@ -10,15 +10,19 @@ import sys
 from pathlib import Path
 
 
-def run_spider(spider_name, args=None):
+def run_spider(spider_name, url=None, args=None):
     """
-    运行 Scrapy 爬虫
+    运行Scrapy爬虫
 
     Args:
         spider_name: 爬虫名称
+        url: 起始URL
         args: 额外参数
     """
     cmd = ["scrapy", "crawl", spider_name]
+
+    if url:
+        cmd.extend(["-a", f"url={url}"])
 
     if args:
         cmd.extend(args)
@@ -30,11 +34,14 @@ def run_spider(spider_name, args=None):
 def main():
     """主函数"""
     if len(sys.argv) < 2:
-        print("Usage: python run.py <spider_name> [args...]")
+        print("Usage: python run.py <spider_name> [url] [args...]")
         print("\nAvailable commands:")
-        print("  python run.py example      - Run example spider")
-        print("  python run.py list        - List all spiders")
-        print("  python run.py shell <url>  - Open Scrapy shell")
+        print("  python run.py blog <url>           - Run generic blog spider")
+        print("  python run.py readthedocs <url>    - Run ReadTheDocs spider")
+        print("  python run.py mkdocs <url>        - Run MkDocs spider")
+        print("  python run.py sphinx <url>        - Run Sphinx spider")
+        print("  python run.py list                - List all spiders")
+        print("  python run.py shell <url>         - Open Scrapy shell")
         sys.exit(1)
 
     command = sys.argv[1]
@@ -49,18 +56,12 @@ def main():
             sys.exit(1)
         url = sys.argv[2]
         subprocess.run(["scrapy", "shell", url])
-    elif command == "check":
-        # 检查爬虫
-        if len(sys.argv) < 3:
-            print("Usage: python run.py check <spider_name>")
-            sys.exit(1)
-        spider_name = sys.argv[2]
-        subprocess.run(["scrapy", "check", spider_name])
     else:
         # 运行爬虫
         spider_name = command
-        args = sys.argv[2:]
-        run_spider(spider_name, args)
+        url = sys.argv[2] if len(sys.argv) > 2 else None
+        args = sys.argv[3:] if len(sys.argv) > 3 else []
+        run_spider(spider_name, url, args)
 
 
 if __name__ == "__main__":

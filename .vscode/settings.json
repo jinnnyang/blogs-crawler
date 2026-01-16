@@ -34,5 +34,18 @@
             "envManager": "ms-python.python:conda",
             "packageManager": "ms-python.python:conda"
         }
-    ]
+    ],
+    "terminal.integrated.profiles.windows": {
+        "Miniconda": {
+            "path": "${env:windir}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "args": [
+                "-ExecutionPolicy",
+                "ByPass",
+                "-NoExit",
+                "-Command",
+                "& '${env:USERPROFILE}\\miniconda3\\shell\\condabin\\conda-hook.ps1' ; conda activate '${env:USERPROFILE}\\miniconda3' "
+            ],
+            "icon": "python"
+        }
+    }
 }
