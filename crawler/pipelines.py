@@ -52,9 +52,10 @@ class MarkdownSavePipeline:
         Args:
             spider: Spider实例
         """
-        spider.logger.info(
-            f"[Pipeline] MarkdownSavePipeline opened for spider: {spider.name}"
-        )
+        if spider:
+            spider.logger.info(
+                f"[Pipeline] MarkdownSavePipeline opened for spider: {spider.name}"
+            )
 
     def process_item(self, item):
         """

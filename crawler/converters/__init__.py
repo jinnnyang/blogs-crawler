@@ -1,44 +1,37 @@
 # -*- coding: utf-8 -*-
 """
 HTML到Markdown转换器模块
-提供针对不同文档框架的专用转换器
+提供统一的转换器，根据框架配置自动适配
 """
 
 from .base import BaseConverter
-from .docsify import DocsifyConverter
-from .mkdocs import MkDocsConverter
-from .rbook import RBookConverter
-from .readthedocs import ReadTheDocsConverter
-from .sphinx import SphinxConverter
-from .teadocs import TeadocsConverter
 
-__all__ = [
-    "BaseConverter",
-    "ReadTheDocsConverter",
-    "RBookConverter",
-    "MkDocsConverter",
-    "SphinxConverter",
-    "TeadocsConverter",
-    "DocsifyConverter",
-]
+__all__ = ["BaseConverter"]
 
 
 def get_converter(framework: str) -> type:
     """
-    根据框架类型获取对应的转换器
+    获取转换器类（统一使用 BaseConverter）
 
     Args:
         framework: 框架类型
 
     Returns:
-        转换器类
+        BaseConverter 类
     """
-    converters = {
-        "readthedocs": ReadTheDocsConverter,
-        "rbook": RBookConverter,
-        "mkdocs": MkDocsConverter,
-        "sphinx": SphinxConverter,
-        "teadocs": TeadocsConverter,
-        "docsify": DocsifyConverter,
-    }
-    return converters.get(framework, BaseConverter)
+    # 现在所有框架都使用统一的 BaseConverter
+    # 通过传入 framework 参数来加载对应的配置
+    return BaseConverter
+
+
+def create_converter(framework: str = "unknown") -> BaseConverter:
+    """
+    创建转换器实例
+
+    Args:
+        framework: 框架类型
+
+    Returns:
+        BaseConverter 实例
+    """
+    return BaseConverter(framework)

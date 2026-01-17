@@ -4,6 +4,7 @@
 包含缓存中间件和随机User-Agent中间件
 """
 
+import logging
 import os
 import random
 import re
@@ -14,6 +15,8 @@ import yaml
 from scrapy import signals
 from scrapy.exceptions import IgnoreRequest
 from scrapy.http import HtmlResponse, Response
+
+logger = logging.getLogger(__name__)
 
 
 class CacheMiddleware:
@@ -33,6 +36,7 @@ class CacheMiddleware:
         self.cache_dir = Path(cache_dir)
         self.output_dir = Path(output_dir)
         self.url_cache: Dict[str, Dict] = {}  # url -> {content, metadata}
+        self.logger = logger
         self._preload_from_output()
 
     @classmethod
@@ -109,23 +113,23 @@ class CacheMiddleware:
         except yaml.YAMLError:
             return None
 
-    def process_request(self, request, spider):
+    def process_request(self, request):
         """
         处理请求，检查缓存
 
         Args:
             request: Scrapy Request对象
-            spider: Spider实例
 
         Returns:
             Response对象或None
         """
         url = request.url
+        self.logger.debug(f"[CacheMiddleware] Processing request: {url}")
 
         # 检查缓存
         if url in self.url_cache:
             cached = self.url_cache[url]
-            spider.logger.info(f"[CacheMiddleware] Cache hit: {url}")
+            self.logger.info(f"[CacheMiddleware] Cache hit: {url}")
 
             # 从缓存创建Response
             # 提取content部分（去除YAML metadata）
@@ -139,30 +143,38 @@ class CacheMiddleware:
             else:
                 body_content = content
 
+            self.logger.debug(
+                f"[CacheMiddleware] Creating response with request={request}, url={url}"
+            )
             # 创建HtmlResponse
             response = HtmlResponse(
                 url=url,
                 status=200,
                 headers={"Content-Type": "text/html; charset=utf-8"},
                 body=body_content.encode("utf-8"),
+                request=request,  # 传递 request 参数以绑定响应到请求
             )
 
+            self.logger.debug(
+                f"[CacheMiddleware] Response created, has meta={hasattr(response, 'meta')}"
+            )
             # 添加缓存标记
             response.meta["cached"] = True
             response.meta["cache_metadata"] = metadata
 
+            self.logger.debug(f"[CacheMiddleware] Returning cached response for: {url}")
             return response
 
+        self.logger.debug(f"[CacheMiddleware] Cache miss for: {url}")
         return None
 
-    def process_response(self, request, response, spider):
+    def process_response(self, request, response):
         """
         处理响应，保存到缓存
 
         Args:
             request: Scrapy Request对象
             response: Scrapy Response对象
-            spider: Spider实例
 
         Returns:
             Response对象
@@ -190,7 +202,7 @@ class CacheMiddleware:
                 with open(cache_file, "w", encoding="utf-8") as f:
                     f.write(response.text)
             except Exception as e:
-                spider.logger.warning(f"[CacheMiddleware] Failed to save cache: {e}")
+                self.logger.warning(f"[CacheMiddleware] Failed to save cache: {e}")
 
         return response
 
@@ -201,7 +213,7 @@ class CacheMiddleware:
         Args:
             spider: Spider实例
         """
-        spider.logger.info(
+        self.logger.info(
             f"[CacheMiddleware] Opened, loaded {len(self.url_cache)} URLs from cache"
         )
 
@@ -213,7 +225,7 @@ class CacheMiddleware:
             spider: Spider实例
             reason: 关闭原因
         """
-        spider.logger.info(f"[CacheMiddleware] Closed, reason: {reason}")
+        self.logger.info(f"[CacheMiddleware] Closed, reason: {reason}")
 
 
 class RandomUserAgentMiddleware:
@@ -229,14 +241,15 @@ class RandomUserAgentMiddleware:
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
         ]
+        self.logger = logger
 
     @classmethod
     def from_crawler(cls, crawler):
         user_agent_list = crawler.settings.get("USER_AGENT_LIST")
         return cls(user_agent_list)
 
-    def process_request(self, request, spider):
+    def process_request(self, request):
         request.headers["User-Agent"] = random.choice(self.user_agent_list)
-        spider.logger.debug(
+        self.logger.debug(
             f"[RandomUserAgent] Using User-Agent: {request.headers['User-Agent']}"
         )
