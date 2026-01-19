@@ -22,22 +22,24 @@ logger = logging.getLogger(__name__)
 class CacheMiddleware:
     """
     缓存中间件
-    支持从output/**/*.md预加载缓存，避免重复请求
+    支持从 cache/*.html 预加载缓存，避免重复请求
     """
 
-    def __init__(self, cache_dir: str = "cache", output_dir: str = "output"):
+    def __init__(self, cache_dir: str = "cache", preload_from_output: bool = False):
         """
         初始化缓存中间件
 
         Args:
             cache_dir: 缓存目录
-            output_dir: 输出目录
+            preload_from_output: 是否从 output/**/*.md 预加载缓存（默认 False）
         """
         self.cache_dir = Path(cache_dir)
-        self.output_dir = Path(output_dir)
         self.url_cache: Dict[str, Dict] = {}  # url -> {content, metadata}
         self.logger = logger
-        self._preload_from_output()
+        self.preload_from_output = preload_from_output
+        self._preload_from_cache()
+        if self.preload_from_output:
+            self._preload_from_output()
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -51,22 +53,58 @@ class CacheMiddleware:
             CacheMiddleware实例
         """
         cache_dir = crawler.settings.get("CACHE_DIR", "cache")
-        output_dir = crawler.settings.get("OUTPUT_DIR", "output")
-        middleware = cls(cache_dir, output_dir)
+        preload_from_output = crawler.settings.get("CACHE_PRELOAD_FROM_OUTPUT", False)
+        middleware = cls(cache_dir, preload_from_output)
         crawler.signals.connect(middleware.spider_opened, signal=signals.spider_opened)
         crawler.signals.connect(middleware.spider_closed, signal=signals.spider_closed)
         return middleware
 
+    def _preload_from_cache(self):
+        """
+        从 cache/*.html 预加载缓存
+        从 HTML 缓存文件中加载内容到内存缓存
+        """
+        if not self.cache_dir.exists():
+            return
+
+        # 查找所有.html文件
+        html_files = self.cache_dir.glob("*.html")
+
+        for html_file in html_files:
+            try:
+                with open(html_file, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                # 从文件名解析 URL
+                # 文件名格式: {netloc}{path}.html
+                filename = html_file.stem
+                # 反向替换: 将 _ 替换为 /，并添加协议和域名
+                # 例如: docs.conda.io_projects_conda_en_latest_index.html -> https://docs.conda.io/projects/conda/en/latest/index
+                parts = filename.split("_")
+                if len(parts) >= 2:
+                    netloc = parts[0]
+                    path = "/" + "/".join(parts[1:])
+                    url = f"https://{netloc}{path}"
+                    self.url_cache[url] = {
+                        "content": content,
+                        "metadata": {"source": "cache", "file": str(html_file)},
+                    }
+            except Exception as e:
+                # 忽略解析错误的文件
+                pass
+
     def _preload_from_output(self):
         """
-        从output/**/*.md预加载缓存
-        解析YAML metadata，提取URL并添加到缓存
+        从 output/**/*.md 预加载缓存
+        解析 YAML metadata，提取 URL 并添加到缓存
+        注意：这会返回 markdown 内容，可能导致框架检测失败
         """
-        if not self.output_dir.exists():
+        output_dir = Path(self.cache_dir.parent / "output")
+        if not output_dir.exists():
             return
 
         # 递归查找所有.md文件
-        md_files = self.output_dir.rglob("*.md")
+        md_files = output_dir.rglob("*.md")
 
         for md_file in md_files:
             try:
@@ -132,16 +170,22 @@ class CacheMiddleware:
             self.logger.info(f"[CacheMiddleware] Cache hit: {url}")
 
             # 从缓存创建Response
-            # 提取content部分（去除YAML metadata）
             content = cached["content"]
             metadata = cached["metadata"]
 
-            # 查找第二个---，获取正文内容
-            end_pos = content.find("\n---\n", 4)
-            if end_pos != -1:
-                body_content = content[end_pos + 5 :]
-            else:
+            # 判断缓存来源
+            source = metadata.get("source", "")
+
+            if source == "cache":
+                # 来自 cache 目录的 HTML 文件，直接使用
                 body_content = content
+            else:
+                # 来自 output 目录的 markdown 文件，去除 YAML metadata
+                end_pos = content.find("\n---\n", 4)
+                if end_pos != -1:
+                    body_content = content[end_pos + 5 :]
+                else:
+                    body_content = content
 
             self.logger.debug(
                 f"[CacheMiddleware] Creating response with request={request}, url={url}"

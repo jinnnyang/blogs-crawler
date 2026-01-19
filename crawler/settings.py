@@ -36,7 +36,7 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 DEFAULT_REQUEST_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-    "Accept-Encoding": "gzip, deflate, br",
+    "Accept-Encoding": "gzip,deflate,identity",  # 移除 br 编码，避免 Brotli 压缩解码问题
     "Connection": "keep-alive",
     "Upgrade-Insecure-Requests": "1",
 }
@@ -145,6 +145,13 @@ HTTPCACHE_IGNORE_HTTP_CODES = [500, 502, 503, 504, 400, 403, 404, 408]
 HTTPCACHE_STORAGE = "scrapy.extensions.httpcache.FilesystemCacheStorage"
 HTTPCACHE_IGNORE_MISSING = False
 HTTPCACHE_IGNORE_SCHEMES = ["file"]
+
+# ============================================================
+# 自定义缓存中间件配置
+# ============================================================
+
+# 是否从 output/**/*.md 预加载缓存（默认 False，避免返回 markdown 内容导致框架检测失败）
+CACHE_PRELOAD_FROM_OUTPUT = False
 
 # ============================================================
 # Feed Export 配置

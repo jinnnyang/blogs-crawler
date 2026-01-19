@@ -77,9 +77,24 @@ frameworks:
     link_extractor:
       allow:
         - ".*/.*\\.html"
+        - ".*/.*/"
+        - ".*/post/.*"
+        - ".*/daily/.*"
+        - ".*/business/.*"
+        - ".*/book/.*"
+        - ".*/about/.*"
+        - ".*/202[0-9]/.*"
+        - ".*/201[0-9]/.*"
       deny:
         - ".*/static/.*"
         - ".*/assets/.*"
+        - ".*/css/.*"
+        - ".*/js/.*"
+        - ".*/img/.*"
+        - ".*/fonts/.*"
+        - ".*/.*\\.xml"
+        - ".*/.*\\.json"
+        - ".*/.*\\.rss"
 
   mkdocs:
     patterns:
@@ -252,6 +267,19 @@ frameworks:
     link_extractor:
       allow:
         - ".*/.*\\.html"
+        - ".*/.*/"
+        - ".*/post/.*"
+        - ".*/daily/.*"
+        - ".*/business/.*"
+        - ".*/book/.*"
+        - ".*/about/.*"
       deny:
         - ".*/static/.*"
         - ".*/assets/.*"
+        - ".*/css/.*"
+        - ".*/js/.*"
+        - ".*/img/.*"
+        - ".*/fonts/.*"
+        - ".*/.*\\.xml"
+        - ".*/.*\\.json"
+        - ".*/.*\\.rss"
